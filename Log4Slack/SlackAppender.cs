@@ -63,6 +63,11 @@ namespace Log4Slack {
         public bool AddExceptionTraceField { get; set; }
 
         /// <summary>
+        /// Indicates whether or not to include the inner exception in the message.
+        /// </summary>
+        public bool AddInnerException { get; set; }
+
+        /// <summary>
         /// Indicates whether or not to append the logger name to the Stack username.
         /// </summary>
         public bool UsernameAppendLoggerName { get; set; }
@@ -133,7 +138,7 @@ namespace Log4Slack {
                     theAttachment.Fields.Insert(0, new Field("Exception Message", Value: exception.Message));
                 }
 
-                if (exception != null && exception.InnerException != null)
+                if (AddInnerException && exception != null && exception.InnerException != null)
                 {
                     theAttachment.Fields.Add(new Field("---- Inner Exception ----", Value: string.Empty, Short: false));
                     theAttachment.Fields.Add(new Field("Inner Exception Type", Value: exception.InnerException.GetType().Name, Short: true));
