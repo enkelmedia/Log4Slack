@@ -120,15 +120,36 @@ namespace Log4Slack {
                 var exception = loggingEvent.ExceptionObject;
                 if (exception != null) {
                     theAttachment.Fields.Insert(0, new Field("Exception Type", Value: exception.GetType().Name, Short: true));
-                    if (AddExceptionTraceField && !string.IsNullOrWhiteSpace(exception.StackTrace)) {
-                        var parts = exception.StackTrace.SplitOn(1990).ToArray(); // Split call stack into consecutive fields of ~2k characters
+                    if (AddExceptionTraceField && !string.IsNullOrWhiteSpace(exception.StackTrace))
+                    {
+                        var parts = SlackMessageHelper.SplitIntoChunksOf2kChars(exception.StackTrace);
+
                         for (int idx = parts.Length - 1; idx >= 0; idx--) {
                             var name = "Exception Trace" + (idx > 0 ? string.Format(" {0}", idx + 1) : null);
-                            theAttachment.Fields.Insert(0, new Field(name, Value: "```" + parts[idx].Replace("```", "'''") + "```"));
+                            theAttachment.Fields.Insert(0, new Field(name, Value: SlackMessageHelper.FormatAsPre(parts[idx])));
                         }
                     }
 
                     theAttachment.Fields.Insert(0, new Field("Exception Message", Value: exception.Message));
+                }
+
+                if (exception != null && exception.InnerException != null)
+                {
+                    theAttachment.Fields.Add(new Field("---- Inner Exception ----", Value: string.Empty, Short: false));
+                    theAttachment.Fields.Add(new Field("Inner Exception Type", Value: exception.InnerException.GetType().Name, Short: true));
+                    theAttachment.Fields.Add(new Field("Inner Exception Message", Value: exception.InnerException.Message));
+
+                    if (AddExceptionTraceField && !string.IsNullOrWhiteSpace(exception.InnerException.StackTrace))
+                    {
+
+                        var parts = SlackMessageHelper.SplitIntoChunksOf2kChars(exception.InnerException.StackTrace);
+                        for (int idx = parts.Length - 1; idx >= 0; idx--)
+                        {
+                            var name = "Inner exception Trace" + (idx > 0 ? string.Format(" {0}", idx + 1) : null);
+                            theAttachment.Fields.Add(new Field(name, Value: SlackMessageHelper.FormatAsPre(parts[idx])));
+                        }
+                    }
+
                 }
 
                 attachments.Add(theAttachment);
@@ -138,6 +159,20 @@ namespace Log4Slack {
             var username = Username.Expand() + (UsernameAppendLoggerName ? " - " + loggingEvent.LoggerName : null);
             slackClient.PostMessageAsync(formattedMessage, Proxy, username, Channel.Expand(), IconUrl.Expand(), IconEmoji.Expand(), attachments, LinkNames);
         }
+    }
+
+    internal static class SlackMessageHelper
+    {
+        public static string FormatAsPre(string content)
+        {
+            return $"```{content.Replace("```", "'''")}```";
+        }
+
+        public static string[] SplitIntoChunksOf2kChars(string content)
+        {
+            return content.SplitOn(1990).ToArray();
+        }
+
     }
 
     internal static class Extensions {
