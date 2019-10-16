@@ -20,6 +20,8 @@ namespace Log4Slack {
         private readonly Process _currentProcess = Process.GetCurrentProcess();
         private List<Mapping> Mappings = new List<Mapping>();
 
+        public static List<Type> ExceptionTypesToIgnore = new List<Type>();
+
         /// <summary>
         /// Slack token.
         /// https://api.slack.com/
@@ -79,7 +81,12 @@ namespace Log4Slack {
 
         public Mapping mapping { set { Mappings.Add(value); } }
 
-        protected override void Append(log4net.Core.LoggingEvent loggingEvent) {
+        protected override void Append(log4net.Core.LoggingEvent loggingEvent)
+        {
+
+            if (ExceptionTypesToIgnore.Contains(loggingEvent.ExceptionObject.GetType()))
+                return;
+            
             // Initialze the Slack client
             var slackClient = new SlackClient(WebhookUrl.Expand());
             var attachments = new List<Attachment>();
@@ -139,6 +146,16 @@ namespace Log4Slack {
             slackClient.PostMessageAsync(formattedMessage, Proxy, username, Channel.Expand(), IconUrl.Expand(), IconEmoji.Expand(), attachments, LinkNames);
         }
     }
+
+
+    public static class PublicExtensions
+    {
+        public static void Add<T>(this List<Type> list)
+        {
+            list.Add(typeof(T));
+        }
+    }
+
 
     internal static class Extensions {
         public static string Expand(this string text) {
